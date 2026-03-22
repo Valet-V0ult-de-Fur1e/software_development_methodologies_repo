@@ -32,9 +32,8 @@ class UserService:
             return None
 
         update_data = user_update.dict(exclude_unset=True)
-        for field in update_data:
-            if field not in ["first_name", "last_name", "middle_name", "email", "password"]:
-                continue 
+        allowed_fields = {"first_name", "last_name", "middle_name", "email", "password"}
+        update_data = {key: value for key, value in update_data.items() if key in allowed_fields}
             
         if "password" in update_data:
             update_data["password_hash"] = get_password_hash(update_data.pop("password"))

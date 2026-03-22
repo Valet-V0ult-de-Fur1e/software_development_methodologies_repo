@@ -7,11 +7,17 @@ type UserUpdatePayload = {
   last_name?: string
   middle_name?: string | null
   email?: string
+  password?: string
   role?: Role
 }
 
 export const usersApi = {
   getById: (id: number) => apiRequest<User>(`/users/${id}`),
+  updateMe: (payload: UserUpdatePayload) =>
+    apiRequest<User>('/users/me', {
+      method: 'PATCH',
+      body: payload,
+    }),
   updateById: (id: number, payload: UserUpdatePayload) =>
     apiRequest<User>(`/users/${id}`, {
       method: 'PATCH',

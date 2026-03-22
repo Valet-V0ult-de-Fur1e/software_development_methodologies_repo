@@ -18,6 +18,7 @@ class UserUpdate(BaseModel):
     last_name: Optional[str] = None
     middle_name: Optional[str] = None
     email: Optional[str] = None
+    password: Optional[str] = None
     role: Optional[UserRole] = None
 
 class UserResponse(UserBase):
