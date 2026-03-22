@@ -2,10 +2,14 @@ import { useEffect, useState } from 'react'
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuth } from '@/app/providers/auth-provider'
 import { AuthModal } from '@/widgets/auth-modal/ui/auth-modal'
+import { CartModal } from '@/widgets/cart-modal/ui/cart-modal'
+import { useCart } from '@/features/cart/model/cart-store'
 
 export const AppLayout = () => {
   const { isAuthenticated, logout, role } = useAuth()
+  const { items } = useCart()
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false)
+  const [isCartModalOpen, setIsCartModalOpen] = useState(false)
   const location = useLocation()
   const navigate = useNavigate()
 
@@ -30,6 +34,11 @@ export const AppLayout = () => {
         </nav>
         <div className="row">
           <span className="badge">{role}</span>
+          {role === 'user' && (
+            <button className="button-secondary" onClick={() => setIsCartModalOpen(true)}>
+              Корзина ({items.length})
+            </button>
+          )}
           {isAuthenticated ? (
             <button className="button-secondary" onClick={logout}>
               Выйти
@@ -43,6 +52,7 @@ export const AppLayout = () => {
       </header>
       <main className="main"><Outlet /></main>
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+      <CartModal isOpen={isCartModalOpen} onClose={() => setIsCartModalOpen(false)} />
     </div>
   )
 }
