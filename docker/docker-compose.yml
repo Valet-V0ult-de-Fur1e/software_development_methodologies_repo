@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   db:
     image: postgres:15
@@ -16,6 +14,11 @@ services:
       interval: 5s
       timeout: 5s
       retries: 5
+    networks:
+      default:
+        aliases:
+          - db
+          - postgres
 
   minio:
     image: minio/minio:latest
@@ -28,6 +31,10 @@ services:
       - "9001:9001"
     volumes:
       - minio_:/data
+    networks:
+      default:
+        aliases:
+          - minio
 
   migrate:
     build:
@@ -56,6 +63,21 @@ services:
       - S3_ACCESS_KEY=minioadmin
       - S3_SECRET_KEY=minioadmin
     command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+
+  frontend:
+    build:
+      context: ../frontend
+      args:
+        VITE_API_BASE_URL: http://localhost:8000/api/v1
+    ports:
+      - "5173:80"
+    depends_on:
+      - backend
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://127.0.0.1/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
 volumes:
   postgres_:

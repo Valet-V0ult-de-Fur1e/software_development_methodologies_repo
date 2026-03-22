@@ -12,3 +12,11 @@ class TokenData(BaseModel):
 class LoginRequest(BaseModel):
     email: str
     password: str
+
+
+class RegisterRequest(BaseModel):
+    first_name: str
+    last_name: str
+    middle_name: str | None = None
+    email: str
+    password: str
