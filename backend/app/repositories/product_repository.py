@@ -1,6 +1,7 @@
-from typing import Optional
+from typing import List, Optional, Tuple
 
 from sqlalchemy import select, func
+from sqlalchemy.orm import selectinload
 from app.models.product import Product
 from app.repositories.base import BaseRepository
 
@@ -8,12 +9,22 @@ class ProductRepository(BaseRepository[Product]):
     model = Product
 
     async def get_by_article(self, article: str) -> Product | None:
-        stmt = select(self.model).where(self.model.article == article)
+        stmt = select(self.model).options(selectinload(self.model.photos)).where(self.model.article == article)
         result = await self.session.execute(stmt)
         return result.scalar_one_or_none()
 
-    async def get_by_category(self, category_id: int) -> list[Product]:
-        stmt = select(self.model).where(self.model.category_id == category_id)
+    async def get_by_category(self, category_id: int) -> List[Product]:
+        stmt = select(self.model).options(selectinload(self.model.photos)).where(self.model.category_id == category_id)
+        result = await self.session.execute(stmt)
+        return result.scalars().all()
+
+    async def get(self, id: int) -> Product | None:
+        stmt = select(self.model).options(selectinload(self.model.photos)).where(self.model.id == id)
+        result = await self.session.execute(stmt)
+        return result.scalar_one_or_none()
+
+    async def list(self) -> List[Product]:
+        stmt = select(self.model).options(selectinload(self.model.photos))
         result = await self.session.execute(stmt)
         return result.scalars().all()
 
@@ -28,8 +39,8 @@ class ProductRepository(BaseRepository[Product]):
         search_query: Optional[str] = None,
         page: int = 1,
         size: int = 10
-    ) -> tuple[list[Product], int]:
-        stmt = select(self.model)
+    ) -> Tuple[List[Product], int]:
+        stmt = select(self.model).options(selectinload(self.model.photos))
         count_stmt = select(func.count()).select_from(self.model)
 
         if category_id is not None:

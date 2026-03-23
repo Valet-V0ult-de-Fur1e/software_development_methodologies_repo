@@ -204,6 +204,125 @@ textarea {
   margin: 0;
 }
 
+.stats-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.7rem;
+}
+
+.stat-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.7rem;
+  background: #fff;
+  display: grid;
+  gap: 0.25rem;
+}
+
+.stat-card strong {
+  font-size: 1.2rem;
+}
+
+.stat-label {
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.manager-hero {
+  border-left: 8px solid #2a8f68;
+}
+
+.panel-toolbar {
+  display: flex;
+  gap: 0.7rem;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.panel-toolbar input,
+.panel-toolbar select {
+  min-width: 220px;
+}
+
+.field span {
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+
+.field input,
+.field select,
+.field textarea {
+  width: 100%;
+}
+
+.entity-row {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) auto auto auto;
+  align-items: center;
+  gap: 0.7rem;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 0.65rem;
+}
+
+.entity-main {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.badge-alert {
+  background: #fff0f0;
+  border-color: #f2b4b4;
+  color: #8f1f1f;
+}
+
+.inner-card {
+  background: #fff;
+  border-style: dashed;
+}
+
+.danger-button {
+  color: #8f1f1f;
+  border-color: #e4b6b6;
+  background: #fff6f6;
+}
+
+.users-table-wrapper {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.users-table-row {
+  display: grid;
+  grid-template-columns: 70px repeat(5, minmax(120px, 1fr)) minmax(180px, 1fr) minmax(170px, auto);
+  gap: 0.5rem;
+  align-items: center;
+  padding: 0.55rem;
+  border-bottom: 1px solid var(--line);
+}
+
+.users-table-row:last-child {
+  border-bottom: none;
+}
+
+.users-table-header {
+  background: #f7f2e8;
+  font-size: 0.82rem;
+  color: var(--muted);
+  font-weight: 700;
+}
+
+.users-row-selected {
+  background: #fff7ef;
+}
+
+.users-table-row input,
+.users-table-row select {
+  width: 100%;
+}
+
 @media (max-width: 720px) {
   .topbar {
     flex-direction: column;
@@ -212,7 +331,18 @@ textarea {
 
   .cart-line,
   .order-line,
-  .manager-grid {
+  .manager-grid,
+  .entity-row {
+    grid-template-columns: 1fr;
+  }
+
+  .panel-toolbar input,
+  .panel-toolbar select {
+    min-width: 0;
+    width: 100%;
+  }
+
+  .users-table-row {
     grid-template-columns: 1fr;
   }
 }

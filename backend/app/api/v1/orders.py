@@ -8,10 +8,45 @@ from app.repositories.pickup_point_repository import PickupPointRepository
 from app.repositories.product_repository import ProductRepository
 from app.services.order_service import OrderService
 from app.schemas.auth import TokenData
-from app.schemas.order import OrderCreate, OrderUpdate, OrderResponse
+from app.schemas.order import OrderCreate, OrderUpdate, OrderResponse, OrderItemResponse
 from app.models.user import UserRole
 
 router = APIRouter(prefix="/orders", tags=["orders"])
+
+
+async def serialize_order_response(order_repo: OrderRepository, order_id: int) -> OrderResponse:
+    order = await order_repo.get(order_id)
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+
+    items = [
+        OrderItemResponse(
+            id=item.id,
+            product_id=item.product_id,
+            quantity=item.quantity,
+            price_at_order=float(item.price_at_order),
+            created_at=item.created_at,
+            updated_at=item.updated_at,
+        )
+        for item in order.items
+    ]
+
+    total_price = float(sum(item.quantity * item.price_at_order for item in order.items))
+
+    return OrderResponse(
+        id=order.id,
+        order_number=order.order_number,
+        date_ordered=order.date_ordered,
+        date_delivered=order.date_delivered,
+        pickup_point_id=order.pickup_point_id,
+        user_id=order.user_id,
+        pickup_code=order.pickup_code,
+        status=order.status,
+        total_price=total_price,
+        created_at=order.created_at,
+        updated_at=order.updated_at,
+        items=items,
+    )
 
 @router.get("/", response_model=list[OrderResponse])
 async def get_orders(
@@ -20,7 +55,7 @@ async def get_orders(
 ):
     order_repo = OrderRepository(session)
     orders = await order_repo.list()
-    return [OrderResponse.from_orm(o) for o in orders]
+    return [await serialize_order_response(order_repo, o.id) for o in orders]
 
 @router.get("/my-orders", response_model=list[OrderResponse])
 async def get_my_orders(
@@ -34,7 +69,7 @@ async def get_my_orders(
         raise HTTPException(status_code=404, detail="User not found")
 
     orders = await order_repo.get_by_user(db_user.id)
-    return [OrderResponse.from_orm(o) for o in orders]
+    return [await serialize_order_response(order_repo, o.id) for o in orders]
 
 @router.get("/{order_id}", response_model=OrderResponse)
 async def get_order(
@@ -53,7 +88,7 @@ async def get_order(
         raise HTTPException(status_code=404, detail="Order not found")
     if order.user_id != db_user.id and current_user.role not in [UserRole.admin, UserRole.manager]:
         raise HTTPException(status_code=403, detail="Not authorized to view this order")
-    return OrderResponse.from_orm(order)
+    return await serialize_order_response(order_repo, order.id)
 
 @router.post("/", response_model=OrderResponse)
 async def create_order(
@@ -80,7 +115,7 @@ async def create_order(
             pickup_point_id=order_create.pickup_point_id,
             items=order_create.items
         )
-        return OrderResponse.from_orm(new_order)
+        return await serialize_order_response(order_repo, new_order.id)
     except ValueError as e:
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -95,7 +130,7 @@ async def update_order(
     updated_order = await order_repo.update(order_id, order_update.dict(exclude_unset=True))
     if not updated_order:
         raise HTTPException(status_code=404, detail="Order not found")
-    return OrderResponse.from_orm(updated_order)
+    return await serialize_order_response(order_repo, updated_order.id)
 
 @router.delete("/{order_id}")
 async def delete_order(

@@ -6,6 +6,7 @@ from app.repositories.user_repository import UserRepository
 from app.repositories.pickup_point_repository import PickupPointRepository
 from app.repositories.product_repository import ProductRepository
 from app.models.order import Order, OrderItem
+from app.schemas.order import OrderItemCreate
 from datetime import datetime
 import secrets
 
@@ -24,17 +25,20 @@ class OrderService:
         self.pickup_repo = pickup_repo
         self.product_repo = product_repo
 
-    async def create_order(self, user_id: int, pickup_point_id: int, items: List[dict]) -> Order:
+    async def create_order(self, user_id: int, pickup_point_id: int, items: List[OrderItemCreate]) -> Order:
         user = await self.user_repo.get(user_id)
         pickup_point = await self.pickup_repo.get(pickup_point_id)
         if not user or not pickup_point:
             raise ValueError("Invalid user or pickup point ID")
 
         for item in items:
-            product = await self.product_repo.get(item["product_id"])
+            product_id = item.product_id
+            quantity = item.quantity
+
+            product = await self.product_repo.get(product_id)
             if not product:
-                raise ValueError(f"Product with ID {item['product_id']} does not exist")
-            if product.stock_quantity < item["quantity"]:
+                raise ValueError(f"Product with ID {product_id} does not exist")
+            if product.stock_quantity < quantity:
                 raise ValueError(f"Not enough stock for product {product.name}")
 
         order_data = {
@@ -50,21 +54,26 @@ class OrderService:
         self.session.add(order)
         await self.session.flush() 
         for item in items:
-            product = await self.product_repo.get(item["product_id"])
+            product_id = item.product_id
+            quantity = item.quantity
+
+            product = await self.product_repo.get(product_id)
             item_obj = OrderItem(
                 order_id=order.id,
-                product_id=item["product_id"],
-                quantity=item["quantity"],
+                product_id=product_id,
+                quantity=quantity,
                 price_at_order=product.price
             )
             self.session.add(item_obj)
 
-            product.stock_quantity -= item["quantity"]
+            product.stock_quantity -= quantity
 
         try:
             await self.session.commit()
-            await self.session.refresh(order)
-            return order
+            created_order = await self.order_repo.get(order.id)
+            if not created_order:
+                raise ValueError("Failed to load created order")
+            return created_order
         except IntegrityError:
             await self.session.rollback()
             raise ValueError("Failed to create order due to conflict")

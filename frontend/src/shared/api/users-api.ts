@@ -12,6 +12,7 @@ type UserUpdatePayload = {
 }
 
 export const usersApi = {
+  list: () => apiRequest<User[]>('/users/'),
   getById: (id: number) => apiRequest<User>(`/users/${id}`),
   updateMe: (payload: UserUpdatePayload) =>
     apiRequest<User>('/users/me', {

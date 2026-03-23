@@ -1,5 +1,6 @@
 from typing import List, Optional, Tuple
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.exc import IntegrityError
 from app.repositories.product_repository import ProductRepository
 from app.repositories.supplier_repository import SupplierRepository
 from app.repositories.manufacturer_repository import ManufacturerRepository
@@ -34,16 +35,29 @@ class ProductService:
 
         product_data = product_create.dict()
         product = Product(**product_data)
-        created_product = await self.product_repo.create(product)
+        try:
+            created_product = await self.product_repo.create(product)
+        except IntegrityError as exc:
+            await self.session.rollback()
+            if "products_article_key" in str(exc):
+                raise ValueError("Товар с таким артикулом уже существует") from exc
+            raise
+
         if photos:
+            photo_index = 0
             for photo_bytes in photos:
-                filename = f"products/{created_product.id}/{slugify(created_product.name)}_{len(created_product.photos)}.jpg"
+                filename = f"products/{created_product.id}/{slugify(created_product.name)}_{photo_index}.jpg"
                 if upload_file_to_s3(photo_bytes, filename):
                     photo = ProductPhoto(product_id=created_product.id, filename=filename)
                     self.session.add(photo)
+                    photo_index += 1
             await self.session.commit()
 
-        return ProductResponse.from_orm(created_product)
+        product_with_photos = await self.product_repo.get(created_product.id)
+        if not product_with_photos:
+            raise ValueError("Не удалось получить созданный товар")
+
+        return ProductResponse.from_orm(product_with_photos)
 
     async def get_product(self, product_id: int) -> Optional[ProductResponse]:
         product = await self.product_repo.get(product_id)

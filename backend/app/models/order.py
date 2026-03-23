@@ -30,7 +30,7 @@ class Order(Base, TimestampMixin):
 
     @hybrid_property
     def total_price(self):
-        return sum(item.total_price for item in self.items)
+        return float(sum(item.quantity * item.price_at_order for item in self.items))
 
     def regenerate_pickup_code(self):
         self.pickup_code = secrets.token_urlsafe(8)

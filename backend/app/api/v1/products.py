@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy import select
 from app.database import get_async_session
 from app.core.deps import require_any_role
 from app.repositories.product_repository import ProductRepository
@@ -12,6 +13,7 @@ from app.models.user import UserRole
 from typing import List
 from app.core.s3_client import upload_file_to_s3
 from app.models.product import ProductPhoto
+from slugify import slugify
 
 router = APIRouter(prefix="/products", tags=["products"])
 
@@ -44,7 +46,6 @@ async def get_product(
 @router.post("/", response_model=ProductResponse)
 async def create_product(
     product_create: ProductCreate,
-    photos: List[UploadFile] = File(None),
     current_user: dict = Depends(require_any_role(UserRole.admin, UserRole.manager)),
     session: AsyncSession = Depends(get_async_session)
 ):
@@ -54,13 +55,10 @@ async def create_product(
     category_repo = ProductCategoryRepository(session)
     product_service = ProductService(session, product_repo, supplier_repo, manufacturer_repo, category_repo)
 
-    photo_bytes_list = []
-    if photos:
-        for photo in photos:
-            contents = await photo.read()
-            photo_bytes_list.append(contents)
-
-    return await product_service.create_product(product_create, photos=photo_bytes_list)
+    try:
+        return await product_service.create_product(product_create)
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e)) from e
 
 @router.patch("/{product_id}", response_model=ProductResponse)
 async def update_product(
@@ -93,6 +91,72 @@ async def update_product(
 
     return ProductResponse.from_orm(updated_product)
 
+
+@router.post("/{product_id}/photos", response_model=ProductResponse)
+async def upload_product_photos(
+    product_id: int,
+    photos: List[UploadFile] = File(...),
+    current_user: dict = Depends(require_any_role(UserRole.admin, UserRole.manager)),
+    session: AsyncSession = Depends(get_async_session)
+):
+    product_repo = ProductRepository(session)
+    product = await product_repo.get(product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    uploaded = 0
+    current_count = len(product.photos)
+    for index, photo in enumerate(photos):
+        contents = await photo.read()
+        if not contents:
+            continue
+
+        filename = f"products/{product.id}/{slugify(product.name)}_{current_count + index}.jpg"
+        if upload_file_to_s3(contents, filename):
+            session.add(ProductPhoto(product_id=product.id, filename=filename))
+            uploaded += 1
+
+    if uploaded == 0:
+        raise HTTPException(status_code=400, detail="No photos were uploaded")
+
+    await session.commit()
+    refreshed_product = await product_repo.get(product_id)
+    if not refreshed_product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return ProductResponse.from_orm(refreshed_product)
+
+
+@router.delete("/{product_id}/photos/{photo_id}", response_model=ProductResponse)
+async def delete_product_photo(
+    product_id: int,
+    photo_id: int,
+    current_user: dict = Depends(require_any_role(UserRole.admin, UserRole.manager)),
+    session: AsyncSession = Depends(get_async_session)
+):
+    product_repo = ProductRepository(session)
+    product = await product_repo.get(product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    stmt = select(ProductPhoto).where(ProductPhoto.id == photo_id, ProductPhoto.product_id == product_id)
+    result = await session.execute(stmt)
+    photo = result.scalar_one_or_none()
+    if not photo:
+        raise HTTPException(status_code=404, detail="Photo not found")
+
+    upload_path = photo.filename
+    await session.delete(photo)
+    await session.commit()
+
+    from app.core.s3_client import delete_file_from_s3
+
+    delete_file_from_s3(upload_path)
+
+    refreshed_product = await product_repo.get(product_id)
+    if not refreshed_product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return ProductResponse.from_orm(refreshed_product)
+
 @router.delete("/{product_id}")
 async def delete_product(
     product_id: int,
@@ -105,7 +169,7 @@ async def delete_product(
         raise HTTPException(status_code=404, detail="Product not found")
     return {"detail": "Product deleted successfully"}
 
-@router.get("/photo/{filename}")
+@router.get("/photo/{filename:path}")
 async def get_product_photo(filename: str):
     from fastapi.responses import Response
     from app.core.s3_client import download_file_from_s3

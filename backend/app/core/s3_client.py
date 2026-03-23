@@ -11,8 +11,23 @@ def get_s3_client():
     )
     return s3_client
 
+def ensure_bucket_exists(bucket_name: str = settings.S3_BUCKET_NAME) -> bool:
+    s3_client = get_s3_client()
+    try:
+        s3_client.head_bucket(Bucket=bucket_name)
+        return True
+    except ClientError:
+        try:
+            s3_client.create_bucket(Bucket=bucket_name)
+            return True
+        except ClientError as e:
+            print(f"Error creating S3 bucket '{bucket_name}': {e}")
+            return False
+
 def upload_file_to_s3(file_content: bytes, filename: str, bucket_name: str = settings.S3_BUCKET_NAME):
     s3_client = get_s3_client()
+    if not ensure_bucket_exists(bucket_name):
+        return False
     try:
         s3_client.put_object(Bucket=bucket_name, Key=filename, Body=file_content)
         return True

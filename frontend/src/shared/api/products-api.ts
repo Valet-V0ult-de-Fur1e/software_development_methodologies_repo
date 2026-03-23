@@ -18,4 +18,16 @@ export const productsApi = {
     apiRequest<{ detail: string }>(`/products/${id}`, {
       method: 'DELETE',
     }),
+  uploadPhotos: (id: number, files: File[]) => {
+    const formData = new FormData()
+    files.forEach((file) => formData.append('photos', file))
+    return apiRequest<Product>(`/products/${id}/photos`, {
+      method: 'POST',
+      body: formData,
+    })
+  },
+  removePhoto: (productId: number, photoId: number) =>
+    apiRequest<Product>(`/products/${productId}/photos/${photoId}`, {
+      method: 'DELETE',
+    }),
 }

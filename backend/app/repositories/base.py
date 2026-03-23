@@ -31,7 +31,7 @@ class BaseRepository(Generic[T], ABC):
     async def update(self, id: int, obj_: dict) -> Optional[T]:
         obj = await self.get(id)
         if obj:
-            for key, value in obj_.data.items():
+            for key, value in obj_.items():
                 setattr(obj, key, value)
             await self.session.commit()
             await self.session.refresh(obj)
