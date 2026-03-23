@@ -30,7 +30,7 @@ export const AppLayout = () => {
         </Link>
         <nav className="row">
           <Link to="/">Каталог</Link>
-          <Link to="/orders">Мои заказы</Link>
+          {(role !== 'manager' && role !== 'admin') && <Link to="/orders">Мои заказы</Link>}
           {(role === 'manager' || role === 'admin') && <Link to="/manager">Менеджер</Link>}
           {role === 'admin' && <Link to="/admin">Админ</Link>}
         </nav>

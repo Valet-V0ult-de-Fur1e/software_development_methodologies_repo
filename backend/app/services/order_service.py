@@ -8,7 +8,6 @@ from app.repositories.product_repository import ProductRepository
 from app.models.order import Order, OrderItem
 from app.schemas.order import OrderItemCreate
 from datetime import datetime
-import secrets
 
 class OrderService:
     def __init__(
@@ -46,7 +45,7 @@ class OrderService:
             "date_ordered": datetime.now(),
             "pickup_point_id": pickup_point_id,
             "user_id": user_id,
-            "pickup_code": secrets.token_urlsafe(8),
+            "pickup_code": Order.generate_pickup_code(),
             "status": "pending"
         }
 

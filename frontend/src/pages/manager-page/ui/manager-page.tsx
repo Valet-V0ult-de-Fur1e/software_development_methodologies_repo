@@ -6,6 +6,7 @@ import { lookupsApi } from '@/shared/api/lookups-api'
 import type { Product } from '@/entities/product/model/types'
 import type { Order, OrderStatus } from '@/entities/order/model/types'
 import type { LookupItem } from '@/shared/types/lookup'
+import { getOrderStatusLabel, ORDER_STATUS_OPTIONS } from '@/shared/lib/order-status'
 
 type ProductDraft = {
   name: string
@@ -51,6 +52,8 @@ export const ManagerPage = () => {
   const [error, setError] = useState('')
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [editPhotoFiles, setEditPhotoFiles] = useState<Record<number, File[]>>({})
+  const [expandedOrders, setExpandedOrders] = useState<Record<number, boolean>>({})
+  const [orderStatusDrafts, setOrderStatusDrafts] = useState<Record<number, OrderStatus>>({})
 
   const loadData = () => {
     Promise.all([
@@ -69,6 +72,11 @@ export const ManagerPage = () => {
         }, {})
         setProductDrafts(draftMap)
         setOrders(orderData)
+        const statusDraftMap = orderData.reduce<Record<number, OrderStatus>>((acc, order) => {
+          acc[order.id] = order.status
+          return acc
+        }, {})
+        setOrderStatusDrafts(statusDraftMap)
         setSuppliers(supplierData)
         setManufacturers(manufacturerData)
         setCategories(categoryData)
@@ -101,6 +109,13 @@ export const ManagerPage = () => {
     }
     return orders.filter((order) => order.status === orderStatusFilter)
   }, [orderStatusFilter, orders])
+
+  const productNameById = useMemo(() => {
+    return products.reduce<Record<number, string>>((acc, product) => {
+      acc[product.id] = product.name
+      return acc
+    }, {})
+  }, [products])
 
   const orderStats = useMemo(() => {
     return {
@@ -164,6 +179,19 @@ export const ManagerPage = () => {
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Не удалось изменить статус заказа')
     }
+  }
+
+  const applyOrderStatusDraft = async (orderId: number) => {
+    const status = orderStatusDrafts[orderId]
+    if (!status) {
+      return
+    }
+
+    await updateOrderStatus(orderId, status)
+  }
+
+  const toggleOrderDetails = (orderId: number) => {
+    setExpandedOrders((prev) => ({ ...prev, [orderId]: !prev[orderId] }))
   }
 
   const removeProduct = async (productId: number) => {
@@ -509,29 +537,81 @@ export const ManagerPage = () => {
               onChange={(e) => setOrderStatusFilter(e.target.value as 'all' | OrderStatus)}
             >
               <option value="all">Все статусы</option>
-              <option value="pending">pending</option>
-              <option value="confirmed">confirmed</option>
-              <option value="shipped">shipped</option>
-              <option value="delivered">delivered</option>
-              <option value="cancelled">cancelled</option>
+              {ORDER_STATUS_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
             </select>
           </label>
         </div>
         {filteredOrders.map((order) => (
-          <div className="entity-row" key={order.id}>
-            <div className="entity-main">
-              <strong>#{order.order_number}</strong>
-              <span className="muted">Позиций: {order.items.length}</span>
+          <div className="stack" key={order.id}>
+            <div className="entity-row">
+              <div className="entity-main">
+                <strong>#{order.order_number}</strong>
+                <span className="muted">Позиций: {order.items.length}</span>
+                <span className="muted">Код получения: {order.pickup_code}</span>
+              </div>
+              <span>{order.total_price.toFixed(2)} ₽</span>
+              <span className="badge">{getOrderStatusLabel(order.status)}</span>
+              <div className="row">
+                <select
+                  value={orderStatusDrafts[order.id] ?? order.status}
+                  onChange={(e) =>
+                    setOrderStatusDrafts((prev) => ({ ...prev, [order.id]: e.target.value as OrderStatus }))
+                  }
+                >
+                  {ORDER_STATUS_OPTIONS.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </select>
+                <button
+                  className="button-primary"
+                  onClick={() => applyOrderStatusDraft(order.id)}
+                  disabled={(orderStatusDrafts[order.id] ?? order.status) === order.status}
+                >
+                  Указать статус
+                </button>
+                <button className="button-secondary" onClick={() => toggleOrderDetails(order.id)}>
+                  {expandedOrders[order.id] ? 'Скрыть состав' : 'Состав заказа'}
+                </button>
+                <button
+                  className="button-primary"
+                  onClick={() => updateOrderStatus(order.id, 'delivered')}
+                  disabled={order.status === 'delivered' || order.status === 'cancelled'}
+                >
+                  Заказ закрыт
+                </button>
+                <button
+                  className="button-secondary danger-button"
+                  onClick={() => updateOrderStatus(order.id, 'cancelled')}
+                  disabled={order.status === 'delivered' || order.status === 'cancelled'}
+                >
+                  Отменить заказ
+                </button>
+              </div>
             </div>
-            <span>{order.total_price.toFixed(2)} ₽</span>
-            <span className="badge">{order.status}</span>
-            <select value={order.status} onChange={(e) => updateOrderStatus(order.id, e.target.value as OrderStatus)}>
-              <option value="pending">pending</option>
-              <option value="confirmed">confirmed</option>
-              <option value="shipped">shipped</option>
-              <option value="delivered">delivered</option>
-              <option value="cancelled">cancelled</option>
-            </select>
+
+            {expandedOrders[order.id] && (
+              <div className="card stack">
+                <h3>Содержимое заказа</h3>
+                <p className="muted">Код получения для клиента: {order.pickup_code}</p>
+                {order.items.map((item) => (
+                  <div className="entity-row" key={item.id}>
+                    <div className="entity-main">
+                      <strong>{productNameById[item.product_id] ?? `Товар #${item.product_id}`}</strong>
+                      <span className="muted">ID товара: {item.product_id}</span>
+                    </div>
+                    <span>Количество: {item.quantity}</span>
+                    <span>Цена: {Number(item.price_at_order).toFixed(2)} ₽</span>
+                    <span>Сумма: {(Number(item.price_at_order) * item.quantity).toFixed(2)} ₽</span>
+                  </div>
+                ))}
+              </div>
+            )}
           </div>
         ))}
         {filteredOrders.length === 0 && <p className="muted">Заказы по текущему фильтру не найдены.</p>}

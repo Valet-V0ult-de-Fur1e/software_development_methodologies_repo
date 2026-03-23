@@ -3,7 +3,8 @@ from sqlalchemy.orm import relationship, Mapped, mapped_column
 from sqlalchemy.ext.hybrid import hybrid_property
 from app.models.base import Base, TimestampMixin
 from datetime import datetime
-import secrets
+import random
+import re
 from enum import Enum
 
 class OrderStatus(str, Enum):
@@ -32,8 +33,16 @@ class Order(Base, TimestampMixin):
     def total_price(self):
         return float(sum(item.quantity * item.price_at_order for item in self.items))
 
+    @staticmethod
+    def generate_pickup_code() -> str:
+        return f"{random.randint(100, 999)}"
+
+    @staticmethod
+    def is_valid_pickup_code(code: str) -> bool:
+        return bool(re.fullmatch(r"\d{3}", str(code)))
+
     def regenerate_pickup_code(self):
-        self.pickup_code = secrets.token_urlsafe(8)
+        self.pickup_code = self.generate_pickup_code()
 
 class OrderItem(Base, TimestampMixin):
     __tablename__ = "order_items"

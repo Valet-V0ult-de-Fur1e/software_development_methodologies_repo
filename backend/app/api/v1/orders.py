@@ -19,6 +19,11 @@ async def serialize_order_response(order_repo: OrderRepository, order_id: int) -
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
 
+    if not order.is_valid_pickup_code(order.pickup_code):
+        order.regenerate_pickup_code()
+        await order_repo.session.commit()
+        await order_repo.session.refresh(order)
+
     items = [
         OrderItemResponse(
             id=item.id,
