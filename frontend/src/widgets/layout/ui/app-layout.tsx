@@ -25,35 +25,39 @@ export const AppLayout = () => {
   return (
     <div className="page-shell">
       <header className="topbar">
-        <Link to="/" className="brand">
-          Shoe Store
-        </Link>
-        <nav className="row">
-          <Link to="/">Каталог</Link>
-          {(role !== 'manager' && role !== 'admin') && <Link to="/orders">Мои заказы</Link>}
-          {(role === 'manager' || role === 'admin') && <Link to="/manager">Менеджер</Link>}
-          {role === 'admin' && <Link to="/admin">Админ</Link>}
-        </nav>
-        <div className="row">
-          {role === 'user' && (
-            <button className="button-secondary" onClick={() => setIsCartModalOpen(true)}>
-              Корзина ({items.length})
-            </button>
-          )}
-          {isAuthenticated ? (
-            <>
-              <button className="button-secondary" onClick={() => setIsProfileModalOpen(true)}>
-                Профиль
+        <div className="topbar-main">
+          <Link to="/" className="brand">
+            Shoe Store
+          </Link>
+
+          <nav className="top-nav">
+            <Link to="/">Каталог</Link>
+            {(role !== 'manager' && role !== 'admin') && <Link to="/orders">Мои заказы</Link>}
+            {(role === 'manager' || role === 'admin') && <Link to="/manager">Менеджер</Link>}
+            {role === 'admin' && <Link to="/admin">Админ</Link>}
+          </nav>
+
+          <div className="top-actions">
+            {role === 'user' && (
+              <button className="button-secondary" onClick={() => setIsCartModalOpen(true)}>
+                Корзина <span className="badge">{items.length}</span>
               </button>
-              <button className="button-secondary" onClick={logout}>
-                Выйти
+            )}
+            {isAuthenticated ? (
+              <>
+                <button className="button-secondary" onClick={() => setIsProfileModalOpen(true)}>
+                  Профиль
+                </button>
+                <button className="button-secondary" onClick={logout}>
+                  Выйти
+                </button>
+              </>
+            ) : (
+              <button className="button-secondary" onClick={() => setIsAuthModalOpen(true)}>
+                Войти
               </button>
-            </>
-          ) : (
-            <button className="button-secondary" onClick={() => setIsAuthModalOpen(true)}>
-              Войти / Регистрация
-            </button>
-          )}
+            )}
+          </div>
         </div>
       </header>
       <main className="main"><Outlet /></main>
