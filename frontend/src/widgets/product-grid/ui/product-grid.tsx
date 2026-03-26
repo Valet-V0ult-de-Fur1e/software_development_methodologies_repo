@@ -18,14 +18,29 @@ export const ProductGrid = ({ products }: Props) => {
         const photoUrl = firstPhoto
           ? `${import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8000/api/v1'}/products/photo/${firstPhoto}`
           : null
+        const discount = Number(product.discount ?? 0)
+        const hasDiscount = discount > 0
+        const basePrice = Number(product.price)
+        const discountedPrice = hasDiscount
+          ? basePrice * (1 - discount / 100)
+          : basePrice
 
         return (
           <article key={product.id} className="card product-card">
             {photoUrl ? <img src={photoUrl} alt={product.name} className="product-image" /> : <div className="product-image image-placeholder">Нет фото</div>}
-            <h3>{product.name}</h3>
-            <p className="muted">Артикул: {product.article}</p>
-            <p>{Number(product.price).toFixed(2)} ₽</p>
-            <div className="row">
+            {hasDiscount && <span className="discount-badge">-{discount.toFixed(0)}%</span>}
+            <div className="product-meta">
+              <p className="muted">Артикул {product.article}</p>
+              <h3>{product.name}</h3>
+            </div>
+            <div className="product-footer">
+              <div className="product-prices">
+                <p className="product-price">{discountedPrice.toFixed(2)} ₽</p>
+                {hasDiscount && <p className="product-price-old">{basePrice.toFixed(2)} ₽</p>}
+              </div>
+              <p className="product-stock">В наличии: {product.stock_quantity}</p>
+            </div>
+            <div className="row product-actions">
               <Link className="button-link" to={`/products/${product.id}`}>
                 Карточка
               </Link>

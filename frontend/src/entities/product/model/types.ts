@@ -29,6 +29,18 @@ export type ProductListResponse = {
   pages: number
 }
 
+export type ProductListFilters = {
+  category_id?: number
+  supplier_id?: number
+  manufacturer_id?: number
+  min_price?: number
+  max_price?: number
+  in_stock?: boolean
+  search_query?: string
+  page?: number
+  size?: number
+}
+
 export type ProductPayload = {
   article: string
   name: string
@@ -39,5 +51,5 @@ export type ProductPayload = {
   category_id: number
   discount?: number
   stock_quantity: number
-  description?: string
+  description?: string | null
 }
